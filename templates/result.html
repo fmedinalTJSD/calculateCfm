@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="{{ result.lang }}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ result.trans.result_title }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; color: #222; }
+    h1 { margin-bottom: 6px; }
+    .card { border:1px solid #ddd; padding:12px; border-radius:6px; margin-bottom:12px; }
+    .verdict { padding:12px; border-radius:6px; color:#fff; font-weight:bold; display:inline-block; }
+    .green { background:#2ecc71; }
+    .yellow { background:#f1c40f; color:#111; }
+    .red { background:#e74c3c; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; }
+    th, td { border:1px solid #eee; padding:8px; text-align:left; }
+    th { background:#f9f9f9; }
+    .muted { color:#666; font-size:0.95em; }
+    .btn { padding:8px 12px; border-radius:6px; border:none; cursor:pointer; background:#2d89ef; color:white; text-decoration:none; display:inline-block; }
+  </style>
+</head>
+<body>
+  <h1>{{ result.trans.result_title }}</h1>
+
+  <div class="card">
+    <div style="display:flex; gap:16px; align-items:center;">
+      <div style="flex:1;">
+        <div class="muted">{{ result.trans.current_tons_label }}</div>
+        <div><strong>{{ result.tons }}</strong></div>
+        {% if result.tons_source == 'house' %}
+          <div class="muted">{{ result.trans.house_size }}: {{ result.house_size }} sqft</div>
+          <div class="muted">{{ result.trans.sqft_per_ton }}: {{ result.sqft_per_ton_used }}</div>
+          <div class="muted">{{ result.trans.estimated_tons }}: {{ result.tons }}</div>
+        {% endif %}
+      </div>
+
+      <div style="flex:1;">
+        <div class="muted">{{ result.trans.required_cfm }}</div>
+        <div><strong>{{ result.required_cfm }}</strong></div>
+        <div class="muted">{{ result.trans.acceptable_range }}</div>
+        <div><strong>{{ result.lower_bound }} - {{ result.upper_bound }}</strong></div>
+      </div>
+
+      <div style="flex:1;">
+        <div class="muted">{{ result.trans.supply_total_label }}</div>
+        <div><strong>{{ result.total_cfm_supply }}</strong></div>
+        {% if result.color_supply == 'green' %}
+          <div class="verdict green">{{ result.verdict_supply }}</div>
+        {% elif result.color_supply == 'yellow' %}
+          <div class="verdict yellow">{{ result.verdict_supply }}</div>
+        {% else %}
+          <div class="verdict red">{{ result.verdict_supply }}</div>
+        {% endif %}
+      </div>
+
+      <div style="flex:1;">
+        <div class="muted">{{ result.trans.return_total_label }}</div>
+        <div><strong>{{ result.total_cfm_return }}</strong></div>
+        {% if result.color_return == 'green' %}
+          <div class="verdict green">{{ result.verdict_return }}</div>
+        {% elif result.color_return == 'yellow' %}
+          <div class="verdict yellow">{{ result.verdict_return }}</div>
+        {% else %}
+          <div class="verdict red">{{ result.verdict_return }}</div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>{{ result.trans.supply }}</h3>
+    {% if result.breakdown.supply %}
+      <table>
+        <tr><th>{{ result.trans.diameter }}</th><th>{{ result.trans.type }}</th><th>{{ result.trans.qty }}</th><th>{{ result.trans.cfm_per_unit }}</th><th>{{ result.trans.subtotal }}</th><th>{{ result.trans.note }}</th></tr>
+        {% for e in result.breakdown.supply %}
+          <tr>
+            <td>{{ e.diameter }}"</td>
+            <td>{{ e.type }}</td>
+            <td>{{ e.qty }}</td>
+            <td>{{ e.cfm_per_unit if e.cfm_per_unit is not none else '-' }}</td>
+            <td>{{ e.subtotal if e.subtotal is not none else '-' }}</td>
+            <td class="muted">{{ e.error if e.error else '' }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="muted">No {{ result.trans.supply }} valid.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>{{ result.trans.return }}</h3>
+    {% if result.breakdown.return %}
+      <table>
+        <tr><th>{{ result.trans.diameter }}</th><th>{{ result.trans.type }}</th><th>{{ result.trans.qty }}</th><th>{{ result.trans.cfm_per_unit }}</th><th>{{ result.trans.subtotal }}</th><th>{{ result.trans.note }}</th></tr>
+        {% for e in result.breakdown.return %}
+          <tr>
+            <td>{{ e.diameter }}"</td>
+            <td>{{ e.type }}</td>
+            <td>{{ e.qty }}</td>
+            <td>{{ e.cfm_per_unit if e.cfm_per_unit is not none else '-' }}</td>
+            <td>{{ e.subtotal if e.subtotal is not none else '-' }}</td>
+            <td class="muted">{{ e.error if e.error else '' }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="muted">No {{ result.trans.return }} valid.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>House estimate</h3>
+    <div class="muted">Size (sqft): <strong>{{ result.house_size if result.house_size else '-' }}</strong></div>
+    <div class="muted">Sqft per Ton (divisor): <strong>{{ result.sqft_per_ton_used }}</strong></div>
+    <div class="muted">Estimated AC size (Tons): <strong>{% if result.tons_source == 'house' %}{{ result.tons }}{% else %}-{% endif %}</strong></div>
+    <div class="muted" style="margin-top:8px">{% if result.tons_source == 'house' %}Estimation used.{% else %}Manual Tons field was applied.{% endif %}</div>
+  </div>
+
+  <div class="card">
+    <h3>Tables used for this calculation</h3>
+    <div style="display:flex; gap:16px;">
+      <div style="flex:1;">
+        <h4>Supply</h4>
+        <table>
+          <tr><th>Diameter</th><th>Flex</th><th>Sheet</th></tr>
+          {% for d in result.supply_table_used.keys() %}
+            <tr>
+              <td>{{ d }}"</td>
+              <td>{{ result.supply_table_used[d]['Flex'] if result.supply_table_used[d]['Flex'] is not none else '-' }}</td>
+              <td>{{ result.supply_table_used[d]['Sheet'] if result.supply_table_used[d]['Sheet'] is not none else '-' }}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+
+      <div style="flex:1;">
+        <h4>Return</h4>
+        <table>
+          <tr><th>Diameter</th><th>Flex</th><th>Sheet</th></tr>
+          {% for d in result.return_table_used.keys() %}
+            <tr>
+              <td>{{ d }}"</td>
+              <td>{{ result.return_table_used[d]['Flex'] if result.return_table_used[d]['Flex'] is not none else '-' }}</td>
+              <td>{{ result.return_table_used[d]['Sheet'] if result.return_table_used[d]['Sheet'] is not none else '-' }}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <a class="btn" href="{{ url_for('index', lang=result.lang) }}">{{ result.trans.new_calc }}</a>
+  </div>
+</body>
+</html>

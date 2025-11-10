@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ trans.title }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; color: #222; }
+    h1 { margin-bottom: 4px; }
+    .section { border: 1px solid #ddd; padding: 12px; margin-bottom: 16px; border-radius: 6px; }
+    .row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    select, input[type="number"], input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; }
+    .add-btn { background: #2d89ef; color: white; }
+    .remove-btn { background: #e74c3c; color: white; }
+    .calculate-btn { background:#27ae60; color: white; font-weight: bold; padding: 10px 16px; }
+    label { min-width: 70px; display: inline-block; }
+    .small { font-size: 0.9em; color:#666; }
+    .note { font-size:0.9em; color:#555; margin-top:8px; }
+    .flash { padding:8px; margin-bottom:12px; border-radius:4px; }
+    .flash-danger { background:#ffe6e6; border:1px solid #ffb3b3; color:#900; }
+    .lang-select { float:right; }
+    .settings-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; align-items:center; }
+    .settings-grid label { min-width: auto; }
+    .small-muted { font-size:0.85em; color:#666; }
+    /* Settings panel hidden by default */
+    #settingsPanel { display:none; margin-bottom:16px; }
+    .settings-toggle { background:#444; color:#fff; padding:8px 10px; border-radius:6px; border:none; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <h1>{{ trans.title }}</h1>
+  <p class="small">{{ trans.subtitle }}</p>
+
+  <div class="lang-select">
+    <form method="get" action="{{ url_for('index') }}">
+      <label for="lang_select"><strong>Language</strong></label>
+      <select id="lang_select" name="lang" onchange="this.form.submit()">
+        <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+        <option value="es" {% if lang == 'es' %}selected{% endif %}>Español</option>
+      </select>
+    </form>
+  </div>
+
+  <div style="clear:both;"></div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="flash flash-{{ category }}">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div style="margin-bottom:12px;">
+    <button class="settings-toggle" type="button" onclick="toggleSettings()">{{ trans.settings_button }}</button>
+  </div>
+
+  <form method="post" action="{{ url_for('calculate') }}" id="cfmForm">
+    <input type="hidden" name="lang" value="{{ lang }}" />
+
+    <!-- Settings panel (hidden by default; appears when pressing Settings) -->
+    <div id="settingsPanel" class="section">
+      <h3>{{ trans.settings }}</h3>
+      <div class="small-muted">{{ trans.save_note }}</div>
+      <div style="margin-top:8px;">
+        <label for="cfm_per_ton"><strong>{{ trans.cfm_per_ton }}</strong></label>
+        <input type="number" id="cfm_per_ton" name="cfm_per_ton" value="{{ default_cfm_per_ton }}" min="1" style="width:120px" />
+      </div>
+
+      <hr />
+
+      <h4>Supply default values</h4>
+      <div class="settings-grid" style="margin-top:8px;">
+        <div><strong>Diameter</strong></div>
+        <div><strong>Flex</strong></div>
+        <div><strong>Sheet</strong></div>
+        <div></div>
+        {% for d in diameters %}
+          <div>{{ d }}"</div>
+          <div><input type="number" name="supply_{{ d }}_Flex" value="{{ default_supply[d]['Flex'] if default_supply[d]['Flex'] is not none else '' }}" style="width:100px" /></div>
+          <div><input type="number" name="supply_{{ d }}_Sheet" value="{{ default_supply[d]['Sheet'] if default_supply[d]['Sheet'] is not none else '' }}" style="width:100px" /></div>
+          <div class="small-muted">Supply</div>
+        {% endfor %}
+      </div>
+
+      <hr />
+
+      <h4>Return default values (use xx for None)</h4>
+      <div class="settings-grid" style="margin-top:8px;">
+        <div><strong>Diameter</strong></div>
+        <div><strong>Flex</strong></div>
+        <div><strong>Sheet</strong></div>
+        <div></div>
+        {% for d in diameters %}
+          <div>{{ d }}"</div>
+          <div>
+            <input type="text" name="return_{{ d }}_Flex" value="{{ default_return[d]['Flex'] if default_return[d]['Flex'] is not none else 'xx' }}" style="width:100px" />
+          </div>
+          <div>
+            <input type="text" name="return_{{ d }}_Sheet" value="{{ default_return[d]['Sheet'] if default_return[d]['Sheet'] is not none else '' }}" style="width:100px" />
+          </div>
+          <div class="small-muted">Return</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>{{ trans.supply }}</h3>
+      <div id="supply_rows">
+        <div class="row supply-row">
+          <select name="supply_diameter[]">
+            <option value="">{{ trans.diameter }}</option>
+            {% for d in diameters %}
+              <option value="{{ d }}">{{ d }}"</option>
+            {% endfor %}
+          </select>
+
+          <select name="supply_type[]">
+            <option value="Flex">Flex</option>
+            <option value="Sheet">Sheet Metal</option>
+          </select>
+
+          <input type="number" name="supply_qty[]" min="0" value="1" style="width:80px" />
+
+          <button type="button" class="remove-btn" onclick="removeRow(this)">{{ trans.remove }}</button>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <button type="button" class="add-btn" onclick="addRow('supply')">{{ trans.add_supply }}</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>{{ trans.return }}</h3>
+      <div id="return_rows">
+        <div class="row return-row">
+          <select name="return_diameter[]">
+            <option value="">{{ trans.diameter }}</option>
+            {% for d in diameters %}
+              <option value="{{ d }}">{{ d }}"</option>
+            {% endfor %}
+          </select>
+
+          <select name="return_type[]">
+            <option value="Flex">Flex</option>
+            <option value="Sheet">Sheet Metal</option>
+          </select>
+
+          <input type="number" name="return_qty[]" min="0" value="1" style="width:80px" />
+
+          <button type="button" class="remove-btn" onclick="removeRow(this)">{{ trans.remove }}</button>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <button type="button" class="add-btn" onclick="addRow('return')">{{ trans.add_return }}</button>
+      </div>
+      <p class="note">{{ trans.note_return }}</p>
+    </div>
+
+    <div class="section">
+      <h3>{{ trans.equipment }}</h3>
+      <div class="row">
+        <label for="tons">{{ trans.tons }}</label>
+        <input type="text" name="tons" id="tons" placeholder="e.g. 3.5" style="width:120px" />
+      </div>
+      <div style="margin-top:12px;">
+        <button type="submit" class="calculate-btn">{{ trans.calculate }}</button>
+      </div>
+    </div>
+
+    <!-- House size moved to the last section -->
+    <div class="section">
+      <h3>{{ trans.house_size }} (sqft)</h3>
+      <div class="row">
+        <label for="house_size">{{ trans.house_size }} (sqft)</label>
+        <input type="number" id="house_size" name="house_size" placeholder="e.g. 2000 (sqft)" style="width:140px" min="0" step="1" />
+      </div>
+      <div class="row" style="margin-top:8px; align-items:center;">
+        <input type="checkbox" id="use_house_size" name="use_house_size" />
+        <label for="use_house_size" style="margin-left:6px;">{{ trans.use_house_size }}</label>
+      </div>
+
+      <div class="row" style="margin-top:8px;">
+        <label for="sqft_per_ton">{{ trans.sqft_per_ton }}</label>
+        <input type="number" id="sqft_per_ton" name="sqft_per_ton" value="{{ default_sqft_per_ton }}" min="1" step="1" style="width:120px" />
+      </div>
+    </div>
+    
+  </form>
+
+  <script>
+    function toggleSettings(){
+      const panel = document.getElementById('settingsPanel');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function removeRow(btn){
+      const row = btn.closest('.row');
+      const container = row.parentElement;
+      if(container.querySelectorAll('.row').length > 1){
+        row.remove();
+      } else {
+        const selects = row.querySelectorAll('select');
+        selects.forEach(s => s.selectedIndex = 0);
+        const inputs = row.querySelectorAll('input');
+        inputs.forEach(i => i.value = i.min ? i.min : '');
+      }
+    }
+
+    function addRow(kind){
+      const containerId = kind === 'supply' ? 'supply_rows' : 'return_rows';
+      const container = document.getElementById(containerId);
+      const newRow = document.createElement('div');
+      newRow.className = 'row ' + kind + '-row';
+      newRow.innerHTML = `
+        <select name="${kind}_diameter[]">
+          <option value="">{{ trans.diameter }}</option>
+          {% for d in diameters %}
+            <option value="{{ d }}">{{ d }}</option>
+          {% endfor %}
+        </select>
+
+        <select name="${kind}_type[]">
+          <option value="Flex">Flex</option>
+          <option value="Sheet">Sheet Metal</option>
+        </select>
+
+        <input type="number" name="${kind}_qty[]" min="0" value="1" style="width:80px" />
+
+        <button type="button" class="remove-btn" onclick="removeRow(this)">{{ trans.remove }}</button>
+      `;
+      container.appendChild(newRow);
+    }
+  </script>
+</body>
+</html>
