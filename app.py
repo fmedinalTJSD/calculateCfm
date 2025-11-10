@@ -210,6 +210,7 @@ def calculate():
 
         tons = None
         tons_source = None
+        tonsActual = request.form.get("tons", "").strip() 
         if use_house and house_size_raw != "":
             hs = safe_decimal(house_size_raw, default=None)
             if hs is not None and hs > 0:
@@ -322,6 +323,7 @@ def calculate():
             "entries": supply_entries + return_entries,
             "breakdown": breakdown,
             "tons": str(tons),
+            "tonsActual": str(tonsActual),
             "tons_source": tons_source,
             "lang": lang,
             "trans": trans,
@@ -345,4 +347,5 @@ if __name__ == "__main__":
     import os
 
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
